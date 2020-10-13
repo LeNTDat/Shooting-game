@@ -28,13 +28,11 @@ var ship = {
 }
 // Roids
 function newAsteroids(size, num, speed, fps, vert, xShip, jag) {
-
     this.create = function () {
         do {
             xroids = Math.floor(Math.random() * canvas.width);
             yroids = Math.floor(Math.random() * canvas.height)
         } while (this.checkDistance(xShip.x, xShip.y, xroids, yroids) < size * 2 + xShip.r)
-
         var roids = {
             x: xroids,
             y: yroids,
@@ -45,11 +43,9 @@ function newAsteroids(size, num, speed, fps, vert, xShip, jag) {
             vert: Math.floor(Math.random() * (vert + 1) + vert / 2),
             offs: []
         }
-
         for (var i = 0; i < roids.vert; i++) {
             roids.offs.push(Math.random() * jag * 2 + 1 - jag);
         }
-
         return roids
     }
     this.checkDistance = function (x1, y1, x2, y2) {
