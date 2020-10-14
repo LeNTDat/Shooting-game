@@ -12,13 +12,15 @@ const DROIDS_NUM = 3;
 const DROIDS_SPEED = 70;
 const DROIDS_SIZE = 100;
 const DROIDS_VERT = 10;
-const DROIDS_JAGGED = 0.45;
+const DROIDS_JAGGED = 0.45;// ĐỘ NHỌN CỦA THIÊN THẠCH
 const CIR_SHIP = false;
 const CIR_ASTEROIDS = false;
 const SHIP_EXPL_DUR = 0.3;
 const SHIP_BLINK_DUR = 0.1;
 const SHIP_INVISIBILITY_DUR = 3;
-
+const AMMO_NUM = 10;
+const AMMO_SPEED = 500;
+const AMMO_DIST = 0.6; // KHOẢNG CÁCH ĐI ĐƯỢC CỦA ĐẠN SO VỚI canvas.width 
 // ship
 function newShip() {
     this.create = function () {
@@ -29,6 +31,7 @@ function newShip() {
             a: 90 / 180 * Math.PI,
             rot: 0,
             explodingTime: 0,
+            canShoot: false,
             thrusting: false,
             blinkNum: Math.ceil(SHIP_INVISIBILITY_DUR / SHIP_BLINK_DUR),
             blinkTime: Math.ceil(SHIP_BLINK_DUR * FPS),
@@ -47,17 +50,23 @@ function newShip() {
 newShip();
 // Roids
 function newAsteroids() {
-    this.create = function () {
-        do {
-            xroids = Math.floor(Math.random() * canvas.width);
-            yroids = Math.floor(Math.random() * canvas.height)
-        } while (this.checkDistance(ship.x, ship.y, xroids, yroids) < DROIDS_SIZE * 2 + ship.r)
+    //Check distance
+    this.checkDistance = function (x1, y1, x2, y2) {
+        return Math.sqrt(Math.pow(x2 - x1, 2) + Math.pow(y2 - y1, 2));
+    }
+    //find asteroid's( x ,y random )
+    do {
+        xroids = Math.floor(Math.random() * canvas.width);
+        yroids = Math.floor(Math.random() * canvas.height)
+    } while (this.checkDistance(ship.x, ship.y, xroids, yroids) < DROIDS_SIZE * 2 + ship.r)
+    //create object asteroids
+    this.create = function (x, y, r) {
         var roids = {
-            x: xroids,
-            y: yroids,
+            x: x,
+            y: y,
             xv: Math.random() * DROIDS_SPEED / FPS * (Math.random() < 0.5 ? 1 : -1),
             yv: Math.random() * DROIDS_SPEED / FPS * (Math.random() < 0.5 ? 1 : -1),
-            r: DROIDS_SIZE / 2,
+            r: r,
             a: Math.random() * Math.PI * 2,
             vert: Math.floor(Math.random() * (DROIDS_VERT + 1) + DROIDS_VERT / 2),
             offs: []
@@ -67,20 +76,46 @@ function newAsteroids() {
         }
         return roids;
     }
-    this.checkDistance = function (x1, y1, x2, y2) {
-        return Math.sqrt(Math.pow(x2 - x1, 2) + Math.pow(y2 - y1, 2));
-    }
+    //create array asteroids
     this.createRoids = function () {
         asteroids = [];
         for (var i = 0; i < DROIDS_NUM; i++) {
-            asteroids.push(this.create());
+            asteroids.push(this.create(xroids, yroids, Math.ceil(DROIDS_SIZE / 2)));
         }
         return asteroids;
     }
     this.createRoids();
+    //create smaller asteroids and push it to array 
+    this.destroyAsteroids = function (index) {
+        if (asteroids[index].r == DROIDS_SIZE / 2) {
+            asteroids.push(this.create(asteroids[index].x, asteroids[index].y, Math.ceil(DROIDS_SIZE / 4)));
+            asteroids.push(this.create(asteroids[index].x, asteroids[index].y, Math.ceil(DROIDS_SIZE / 4)));
+        } else if (asteroids[index].r == DROIDS_SIZE / 4) {
+            asteroids.push(this.create(asteroids[index].x, asteroids[index].y, Math.ceil(DROIDS_SIZE / 8)));
+            asteroids.push(this.create(asteroids[index].x, asteroids[index].y, Math.ceil(DROIDS_SIZE / 8)));
+        }
+        //destroy asteroids 
+        asteroids.splice(index, 1);
+    }
 }
-//call newAsteroids 
 newAsteroids();
+function newAmmo() {
+    ammo = [];
+    this.shootLaser = function () {
+        if (ship.canShoot && ammo.length < AMMO_NUM) {
+            ammo.push({
+                x: ship.x + 4 / 3 * ship.r * Math.cos(ship.a),
+                y: ship.y - 4 / 3 * ship.r * Math.sin(ship.a),
+                xv: AMMO_SPEED * Math.cos(ship.a) / FPS,
+                yv: -AMMO_SPEED * Math.sin(ship.a) / FPS,
+                dist: 0
+            })
+        }
+
+    }
+    return ammo;
+}
+newAmmo();
 //Keydown funtion 
 document.addEventListener('keydown', keyDown = event => {
     switch (event.keyCode) {
@@ -93,8 +128,9 @@ document.addEventListener('keydown', keyDown = event => {
         case 39://turn right 
             ship.rot = -TURN_SPEED / 180 * Math.PI / FPS;
             break;
-        // case 32:
-        // break;
+        case 32:
+            shootLaser();
+            break;
     }
 });
 //Keyup funtion
@@ -109,8 +145,9 @@ document.addEventListener('keyup', keyUp = event => {
         case 39://stop turn right 
             ship.rot = 0;
             break;
-        // case 32:
-        // break;
+        case 32:
+            ship.canShoot = true;
+            break;
     }
 });
 var runGame = () => {
@@ -148,6 +185,7 @@ var runGame = () => {
                 ctx.closePath();
                 ctx.fill();
                 ctx.stroke();
+
             } else {
                 ship.thrust.x -= FRICTION * ship.thrust.x / FPS;
                 ship.thrust.y -= FRICTION * ship.thrust.y / FPS;
@@ -190,7 +228,7 @@ var runGame = () => {
                 ship.blinkNum--;
             }
         }
-    } else {
+    } else {//explode animation
         ctx.fillStyle = 'darkred';
         ctx.beginPath();
         ctx.arc(ship.x, ship.y, ship.r * 1.7, 0, Math.PI * 2);
@@ -217,10 +255,10 @@ var runGame = () => {
     for (var i = 0; i < asteroids.length; i++) {
         ctx.strokeStyle = 'lightgray';
         ctx.lineWidth = SHIP_SIZE / 20;
-        x = asteroids[i].x;
-        y = asteroids[i].y;
-        r = asteroids[i].r;
-        a = asteroids[i].a;
+        let x = asteroids[i].x;
+        let y = asteroids[i].y;
+        let r = asteroids[i].r;
+        let a = asteroids[i].a;
         vert = asteroids[i].vert;
         offs = asteroids[i].offs;
         //draw asteroids
@@ -249,25 +287,76 @@ var runGame = () => {
             ctx.stroke();
         }
     }
+    //draw ammo
+    for (var i = ammo.length - 1; i >= 0; i--) {
+        // var i = 0; i < ammo.length; i++
+        //draw 
+        ctx.strokeStyle = 'red';
+        ctx.fillStyle = 'yellow';
+        ctx.beginPath();
+        ctx.arc(ammo[i].x, ammo[i].y, SHIP_SIZE / 15, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.stroke();
+        //move ammo
+        ammo[i].x += ammo[i].xv;
+        ammo[i].y += ammo[i].yv;
+        //calculate distance of ammo 
+        ammo[i].dist += Math.sqrt(Math.pow(ammo[i].xv, 2) + Math.pow(ammo[i].yv, 2))
+        //delete ammo
+        if (ammo[i].dist > AMMO_DIST * canvas.width) {
+            ammo.splice(i, 1);
+            continue;
+        }
+        //out screen 
+        if (ammo[i].x < 0) {
+            ammo[i].x = canvas.width;
+        } else if (ammo[i].x > canvas.width) {
+            ammo[i].x = 0;
+        }
+        if (ammo[i].y < 0) {
+            ammo[i].y = canvas.height;
+        } else if (ammo[i].y > canvas.height) {
+            ammo[i].y = 0;
+        }
+    }
+    //detect hit asteroid and ammo
+    for (var i = asteroids.length - 1; i >= 0; i--) {
+        //get property asteroids and ammo
+        let aX = asteroids[i].x;
+        let aY = asteroids[i].y;
+        let aR = asteroids[i].r;
+        for (var j = ammo.length - 1; j >= 0; j--) {
+            let amX = ammo[j].x;
+            let amY = ammo[j].y;
+            if (checkDistance(aX, aY, amX, amY) < aR) {
+                //remove ammo
+                ammo.splice(j, 1);
+                //remove asteroid
+                destroyAsteroids(i);
+                break;
+            }
+        }
+    }
     // checck distance and reset game if u die
     if (!exploding) {
-        if (blinkOn) {
+        if (ship.blinkNum == 0) {
             for (var i = 0; i < asteroids.length; i++) {
                 if (checkDistance(ship.x, ship.y, asteroids[i].x, asteroids[i].y) < ship.r + asteroids[i].r) {
                     explodeShip();
+                    destroyAsteroids(i);
+                    break;
                 }
             }
-            //rotate
-            ship.a += ship.rot
-            //thrust 
-            ship.x += ship.thrust.x
-            ship.y += ship.thrust.y
         }
+        //rotate
+        ship.a += ship.rot
+        //thrust 
+        ship.x += ship.thrust.x
+        ship.y += ship.thrust.y
     } else {
         ship.explodingTime--;
         if (ship.explodingTime == 0) {
             newShip();
-            newAsteroids();
         }
     }
     //handle ship out screen
