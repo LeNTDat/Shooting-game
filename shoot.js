@@ -8,7 +8,7 @@ const FPS = 60;
 const TURN_SPEED = 360;
 const SHIP_THRUST = 5; //accelerator 5 pixel
 const FRICTION = 0.7; // HOLD UP BOYS
-const DROIDS_NUM = 3;
+const DROIDS_NUM = 1;
 const DROIDS_SPEED = 70;
 const DROIDS_SIZE = 100;
 const DROIDS_VERT = 10;
@@ -21,9 +21,33 @@ const SHIP_INVISIBILITY_DUR = 3;
 const AMMO_NUM = 10;
 const AMMO_SPEED = 500;
 const AMMO_DIST = 0.6; // KHOẢNG CÁCH ĐI ĐƯỢC CỦA ĐẠN SO VỚI canvas.width 
+const TEXT_FADE_TIME = 2.5;
+const LIVE = 3;
+var text_alpha, level, text_level, lives;
+function newGame() {
+    level = 0;
+    lives = LIVE;
+    this.newShipgame = function () {
+        newShip();
+    }
+    this.newShipgame();
+    this.newLevel = function () {
+        text_level = 'Level ' + (level + 1);
+        text_alpha = 1.0;
+        newAsteroids();
+    }
+    this.newLevel();
+    this.gameOver = function () {
+        ship.dead = true;
+        text_level = 'Game Over';
+        text_alpha = 1.0;
+    }
+}
+newGame();
+
 // ship
 function newShip() {
-    this.create = function () {
+    this.createShip = function () {
         ship = {
             x: canvas.width / 2,
             y: canvas.height / 2,
@@ -31,7 +55,8 @@ function newShip() {
             a: 90 / 180 * Math.PI,
             rot: 0,
             explodingTime: 0,
-            canShoot: false,
+            dead: false,
+            canShoot: true,
             thrusting: false,
             blinkNum: Math.ceil(SHIP_INVISIBILITY_DUR / SHIP_BLINK_DUR),
             blinkTime: Math.ceil(SHIP_BLINK_DUR * FPS),
@@ -42,30 +67,48 @@ function newShip() {
         }
         return ship;
     }
-    create();
+    this.createShip();
+    this.drawShip = function (x, y, a) {
+        ctx.strokeStyle = 'white';
+        ctx.lineWidth = SHIP_SIZE / 20;
+        ctx.beginPath();
+        ctx.moveTo(
+            // Nose
+            x + 4 / 3 * ship.r * Math.cos(a),
+            y - 4 / 3 * ship.r * Math.sin(a)
+        );
+        ctx.lineTo(
+            // left
+            x - ship.r * (2 / 3 * Math.cos(a) + Math.sin(a)),
+            y + ship.r * (2 / 3 * Math.sin(a) - Math.cos(a))
+        );
+        ctx.lineTo(
+            // right
+            x - ship.r * (2 / 3 * Math.cos(a) - Math.sin(a)),
+            y + ship.r * (2 / 3 * Math.sin(a) + Math.cos(a))
+        );
+        ctx.closePath();
+        ctx.stroke();
+    }
     this.explodeShip = function () {
         ship.explodingTime = Math.ceil(SHIP_EXPL_DUR * FPS);
     }
 }
-newShip();
 // Roids
 function newAsteroids() {
     //Check distance
     this.checkDistance = function (x1, y1, x2, y2) {
         return Math.sqrt(Math.pow(x2 - x1, 2) + Math.pow(y2 - y1, 2));
     }
-    //find asteroid's( x ,y random )
-    do {
-        xroids = Math.floor(Math.random() * canvas.width);
-        yroids = Math.floor(Math.random() * canvas.height)
-    } while (this.checkDistance(ship.x, ship.y, xroids, yroids) < DROIDS_SIZE * 2 + ship.r)
+
     //create object asteroids
     this.create = function (x, y, r) {
+        var faster = 1 + 0.1 * level;
         var roids = {
             x: x,
             y: y,
-            xv: Math.random() * DROIDS_SPEED / FPS * (Math.random() < 0.5 ? 1 : -1),
-            yv: Math.random() * DROIDS_SPEED / FPS * (Math.random() < 0.5 ? 1 : -1),
+            xv: Math.random() * DROIDS_SPEED * faster / FPS * (Math.random() < 0.5 ? 1 : -1),
+            yv: Math.random() * DROIDS_SPEED * faster / FPS * (Math.random() < 0.5 ? 1 : -1),
             r: r,
             a: Math.random() * Math.PI * 2,
             vert: Math.floor(Math.random() * (DROIDS_VERT + 1) + DROIDS_VERT / 2),
@@ -76,29 +119,42 @@ function newAsteroids() {
         }
         return roids;
     }
+    asteroids = [];
     //create array asteroids
     this.createRoids = function () {
-        asteroids = [];
-        for (var i = 0; i < DROIDS_NUM; i++) {
+        //find asteroid's( x ,y random )
+        do {
+            xroids = Math.floor(Math.random() * canvas.width);
+            yroids = Math.floor(Math.random() * canvas.height)
+        } while (this.checkDistance(ship.x, ship.y, xroids, yroids) < DROIDS_SIZE * 2 + ship.r)
+        for (var i = 0; i < DROIDS_NUM + level; i++) {
             asteroids.push(this.create(xroids, yroids, Math.ceil(DROIDS_SIZE / 2)));
         }
         return asteroids;
     }
-    this.createRoids();
     //create smaller asteroids and push it to array 
     this.destroyAsteroids = function (index) {
-        if (asteroids[index].r == DROIDS_SIZE / 2) {
-            asteroids.push(this.create(asteroids[index].x, asteroids[index].y, Math.ceil(DROIDS_SIZE / 4)));
-            asteroids.push(this.create(asteroids[index].x, asteroids[index].y, Math.ceil(DROIDS_SIZE / 4)));
-        } else if (asteroids[index].r == DROIDS_SIZE / 4) {
-            asteroids.push(this.create(asteroids[index].x, asteroids[index].y, Math.ceil(DROIDS_SIZE / 8)));
-            asteroids.push(this.create(asteroids[index].x, asteroids[index].y, Math.ceil(DROIDS_SIZE / 8)));
+        var x = asteroids[index].x;
+        var y = asteroids[index].y;
+        var r = asteroids[index].r;
+        if (r == Math.ceil(DROIDS_SIZE / 2)) {
+            asteroids.push(this.create(x, y, Math.ceil(DROIDS_SIZE / 4)));
+            asteroids.push(this.create(x, y, Math.ceil(DROIDS_SIZE / 4)));
+        } else if (r == Math.ceil(DROIDS_SIZE / 4)) {
+            asteroids.push(this.create(x, y, Math.ceil(DROIDS_SIZE / 8)));
+            asteroids.push(this.create(x, y, Math.ceil(DROIDS_SIZE / 8)));
         }
         //destroy asteroids 
         asteroids.splice(index, 1);
+
+        //no more asteroids
+        if (asteroids.length == 0) {
+            level++;
+            newLevel();
+        }
     }
+    this.createRoids();
 }
-newAsteroids();
 function newAmmo() {
     ammo = [];
     this.shootLaser = function () {
@@ -111,13 +167,15 @@ function newAmmo() {
                 dist: 0
             })
         }
-
     }
     return ammo;
 }
 newAmmo();
 //Keydown funtion 
 document.addEventListener('keydown', keyDown = event => {
+    if (ship.dead) {
+        return;
+    }
     switch (event.keyCode) {
         case 38:
             ship.thrusting = true;
@@ -135,6 +193,10 @@ document.addEventListener('keydown', keyDown = event => {
 });
 //Keyup funtion
 document.addEventListener('keyup', keyUp = event => {
+
+    if (ship.dead) {
+        return;
+    }
     switch (event.keyCode) {
         case 38:
             ship.thrusting = false;
@@ -157,7 +219,7 @@ var runGame = () => {
     ctx.fillStyle = "black";
     ctx.fillRect(0, 0, canvas.width, canvas.height);
     //THRUST
-    if (!exploding) {
+    if (!exploding && !ship.dead) {
         if (blinkOn) {
             if (ship.thrusting) {
                 ship.thrust.x += SHIP_THRUST * Math.cos(ship.a) / FPS;
@@ -185,32 +247,12 @@ var runGame = () => {
                 ctx.closePath();
                 ctx.fill();
                 ctx.stroke();
-
             } else {
                 ship.thrust.x -= FRICTION * ship.thrust.x / FPS;
                 ship.thrust.y -= FRICTION * ship.thrust.y / FPS;
             }
             //draw ship
-            ctx.strokeStyle = 'white';
-            ctx.lineWidth = SHIP_SIZE / 20;
-            ctx.beginPath();
-            ctx.moveTo(
-                // Nose
-                ship.x + 4 / 3 * ship.r * Math.cos(ship.a),
-                ship.y - 4 / 3 * ship.r * Math.sin(ship.a)
-            );
-            ctx.lineTo(
-                // left
-                ship.x - ship.r * (2 / 3 * Math.cos(ship.a) + Math.sin(ship.a)),
-                ship.y + ship.r * (2 / 3 * Math.sin(ship.a) - Math.cos(ship.a))
-            );
-            ctx.lineTo(
-                // right
-                ship.x - ship.r * (2 / 3 * Math.cos(ship.a) - Math.sin(ship.a)),
-                ship.y + ship.r * (2 / 3 * Math.sin(ship.a) + Math.cos(ship.a))
-            );
-            ctx.closePath();
-            ctx.stroke();
+            drawShip(ship.x, ship.y, ship.a);
             //circle around ship
             // if (CIR_SHIP) {
             //     ctx.strokeStyle = 'lime';
@@ -223,7 +265,7 @@ var runGame = () => {
             //reduce blink time
             ship.blinkTime--;
             //reduce blink num
-            if (ship.blinkTime == 0) {
+            if (ship.blinkTime == 0 && !ship.dead) {
                 ship.blinkTime = Math.ceil(SHIP_BLINK_DUR * FPS)
                 ship.blinkNum--;
             }
@@ -252,13 +294,14 @@ var runGame = () => {
         ctx.stroke();
     }
     //asteroids create
+    var x, y, r, a, vert, offs;
     for (var i = 0; i < asteroids.length; i++) {
         ctx.strokeStyle = 'lightgray';
         ctx.lineWidth = SHIP_SIZE / 20;
-        let x = asteroids[i].x;
-        let y = asteroids[i].y;
-        let r = asteroids[i].r;
-        let a = asteroids[i].a;
+        x = asteroids[i].x;
+        y = asteroids[i].y;
+        r = asteroids[i].r;
+        a = asteroids[i].a;
         vert = asteroids[i].vert;
         offs = asteroids[i].offs;
         //draw asteroids
@@ -280,12 +323,12 @@ var runGame = () => {
         asteroids[i].x += asteroids[i].xv;
         asteroids[i].y += asteroids[i].yv
         //circle around asteroids
-        if (CIR_ASTEROIDS) {
-            ctx.strokeStyle = 'lime';
-            ctx.beginPath();
-            ctx.arc(x, y, r, 0, Math.PI * 2)
-            ctx.stroke();
-        }
+        // if (CIR_ASTEROIDS) {
+        //     ctx.strokeStyle = 'lime';
+        //     ctx.beginPath();
+        //     ctx.arc(x, y, r, 0, Math.PI * 2)
+        //     ctx.stroke();
+        // }
     }
     //draw ammo
     for (var i = ammo.length - 1; i >= 0; i--) {
@@ -337,10 +380,22 @@ var runGame = () => {
             }
         }
     }
+    //draw level text
+    if (text_alpha >= 0) {
+        ctx.fillStyle = "rgba(255,255,255," + text_alpha + ")";
+        ctx.font = "30px Comic Sans MS";
+        ctx.textAlign = "center";
+        ctx.fillText(text_level, canvas.width / 2, canvas.height * 3 / 4);
+        text_alpha -= (1.0 / TEXT_FADE_TIME / FPS);
+    }
+    // draw lives
+    for (var i = 0; i < lives; i++) {
+        drawShip(SHIP_SIZE + i * SHIP_SIZE * 1.2, SHIP_SIZE, Math.PI * 0.5)
+    }
     // checck distance and reset game if u die
-    if (!exploding) {
+    if (!exploding && !ship.dead) {
         if (ship.blinkNum == 0) {
-            for (var i = 0; i < asteroids.length; i++) {
+            for (var i = asteroids.length - 1; i >= 0; i--) {
                 if (checkDistance(ship.x, ship.y, asteroids[i].x, asteroids[i].y) < ship.r + asteroids[i].r) {
                     explodeShip();
                     destroyAsteroids(i);
@@ -356,7 +411,12 @@ var runGame = () => {
     } else {
         ship.explodingTime--;
         if (ship.explodingTime == 0) {
-            newShip();
+            lives--;
+            if (lives == 0) {
+                gameOver();
+            } else {
+                newShipgame();
+            }
         }
     }
     //handle ship out screen
