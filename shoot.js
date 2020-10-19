@@ -8,7 +8,7 @@ const FPS = 60;
 const TURN_SPEED = 360;
 const SHIP_THRUST = 5; //accelerator 5 pixel
 const FRICTION = 0.7; // HOLD UP BOYS
-const DROIDS_NUM = 1;
+const DROIDS_NUM = 3;
 const DROIDS_SPEED = 70;
 const DROIDS_SIZE = 100;
 const DROIDS_VERT = 10;
@@ -23,10 +23,15 @@ const AMMO_SPEED = 500;
 const AMMO_DIST = 0.6; // KHOẢNG CÁCH ĐI ĐƯỢC CỦA ĐẠN SO VỚI canvas.width 
 const TEXT_FADE_TIME = 2.5;
 const LIVE = 3;
-var text_alpha, level, text_level, lives;
+const S_SCORE = 100;
+const M_SCORE = 50;
+const L_SCORE = 20;
+
+var text_alpha, level, text_level, lives, scores;
 function newGame() {
     level = 0;
     lives = LIVE;
+    scores = 0;
     this.newShipgame = function () {
         newShip();
     }
@@ -138,11 +143,15 @@ function newAsteroids() {
         var y = asteroids[index].y;
         var r = asteroids[index].r;
         if (r == Math.ceil(DROIDS_SIZE / 2)) {
+            scores += 20;
             asteroids.push(this.create(x, y, Math.ceil(DROIDS_SIZE / 4)));
             asteroids.push(this.create(x, y, Math.ceil(DROIDS_SIZE / 4)));
         } else if (r == Math.ceil(DROIDS_SIZE / 4)) {
+            scores += 50;
             asteroids.push(this.create(x, y, Math.ceil(DROIDS_SIZE / 8)));
             asteroids.push(this.create(x, y, Math.ceil(DROIDS_SIZE / 8)));
+        } else {
+            scores += 100;
         }
         //destroy asteroids 
         asteroids.splice(index, 1);
@@ -320,8 +329,11 @@ var runGame = () => {
         ctx.closePath();
         ctx.stroke();
         //move asteroirds
-        asteroids[i].x += asteroids[i].xv;
-        asteroids[i].y += asteroids[i].yv
+        if (!exploding && !ship.dead) {
+            asteroids[i].x += asteroids[i].xv;
+            asteroids[i].y += asteroids[i].yv
+        }
+
         //circle around asteroids
         // if (CIR_ASTEROIDS) {
         //     ctx.strokeStyle = 'lime';
@@ -380,6 +392,10 @@ var runGame = () => {
             }
         }
     }
+    //draw text score
+    ctx.fillStyle = "rgb(255,255,255 )";
+    ctx.font = "30px Comic Sans MS";
+    ctx.fillText('SCORE ' + scores, canvas.width - 100, canvas.height - 30);
     //draw level text
     if (text_alpha >= 0) {
         ctx.fillStyle = "rgba(255,255,255," + text_alpha + ")";
