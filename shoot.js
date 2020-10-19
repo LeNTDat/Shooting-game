@@ -23,15 +23,19 @@ const AMMO_SPEED = 500;
 const AMMO_DIST = 0.6; // KHOẢNG CÁCH ĐI ĐƯỢC CỦA ĐẠN SO VỚI canvas.width 
 const TEXT_FADE_TIME = 2.5;
 const LIVE = 3;
-const S_SCORE = 100;
-const M_SCORE = 50;
-const L_SCORE = 20;
+const S_SCORE = 50;
+const M_SCORE = 20;
+const L_SCORE = 10;
 
 var text_alpha, level, text_level, lives, scores;
 function newGame() {
     level = 0;
     lives = LIVE;
     scores = 0;
+    this.ammo = function () {
+        newAmmo();
+    }
+    this.ammo();
     this.newShipgame = function () {
         newShip();
     }
@@ -49,7 +53,6 @@ function newGame() {
     }
 }
 newGame();
-
 // ship
 function newShip() {
     this.createShip = function () {
@@ -127,16 +130,17 @@ function newAsteroids() {
     asteroids = [];
     //create array asteroids
     this.createRoids = function () {
-        //find asteroid's( x ,y random )
-        do {
-            xroids = Math.floor(Math.random() * canvas.width);
-            yroids = Math.floor(Math.random() * canvas.height)
-        } while (this.checkDistance(ship.x, ship.y, xroids, yroids) < DROIDS_SIZE * 2 + ship.r)
         for (var i = 0; i < DROIDS_NUM + level; i++) {
+            //find asteroid's( x ,y random )
+            do {
+                xroids = Math.floor(Math.random() * canvas.width);
+                yroids = Math.floor(Math.random() * canvas.height);
+            } while (this.checkDistance(ship.x, ship.y, xroids, yroids) < DROIDS_SIZE * 2 + ship.r)
             asteroids.push(this.create(xroids, yroids, Math.ceil(DROIDS_SIZE / 2)));
         }
         return asteroids;
     }
+    this.createRoids();
     //create smaller asteroids and push it to array 
     this.destroyAsteroids = function (index) {
         var x = asteroids[index].x;
@@ -162,7 +166,7 @@ function newAsteroids() {
             newLevel();
         }
     }
-    this.createRoids();
+
 }
 function newAmmo() {
     ammo = [];
@@ -179,7 +183,7 @@ function newAmmo() {
     }
     return ammo;
 }
-newAmmo();
+
 //Keydown funtion 
 document.addEventListener('keydown', keyDown = event => {
     if (ship.dead) {
