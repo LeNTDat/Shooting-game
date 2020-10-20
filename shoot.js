@@ -22,12 +22,14 @@ const AMMO_NUM = 10;
 const AMMO_SPEED = 500;
 const AMMO_DIST = 0.6; // KHOẢNG CÁCH ĐI ĐƯỢC CỦA ĐẠN SO VỚI canvas.width 
 const TEXT_FADE_TIME = 2.5;
-const LIVE = 3;
-const S_SCORE = 50;
-const M_SCORE = 20;
-const L_SCORE = 10;
+const LIVE = 1;
+const S_SCORE = 30;
+const M_SCORE = 10;
+const L_SCORE = 5;
 
 var text_alpha, level, text_level, lives, scores;
+var best = 0;
+var name = localStorage.getItem('name') || localStorage.setItem('name', "Guest");
 function newGame() {
     level = 0;
     lives = LIVE;
@@ -47,6 +49,8 @@ function newGame() {
     }
     this.newLevel();
     this.gameOver = function () {
+        best += scores;
+        localStorage.setItem(name, best);
         ship.dead = true;
         text_level = 'Game Over';
         text_alpha = 1.0;
@@ -147,15 +151,15 @@ function newAsteroids() {
         var y = asteroids[index].y;
         var r = asteroids[index].r;
         if (r == Math.ceil(DROIDS_SIZE / 2)) {
-            scores += 20;
+            scores += L_SCORE;
             asteroids.push(this.create(x, y, Math.ceil(DROIDS_SIZE / 4)));
             asteroids.push(this.create(x, y, Math.ceil(DROIDS_SIZE / 4)));
         } else if (r == Math.ceil(DROIDS_SIZE / 4)) {
-            scores += 50;
+            scores += M_SCORE;
             asteroids.push(this.create(x, y, Math.ceil(DROIDS_SIZE / 8)));
             asteroids.push(this.create(x, y, Math.ceil(DROIDS_SIZE / 8)));
         } else {
-            scores += 100;
+            scores += S_SCORE;
         }
         //destroy asteroids 
         asteroids.splice(index, 1);
@@ -206,7 +210,6 @@ document.addEventListener('keydown', keyDown = event => {
 });
 //Keyup funtion
 document.addEventListener('keyup', keyUp = event => {
-
     if (ship.dead) {
         return;
     }
@@ -464,3 +467,4 @@ var runGame = () => {
     }
 }
 setInterval(runGame, 1000 / FPS)//loop runGame
+
